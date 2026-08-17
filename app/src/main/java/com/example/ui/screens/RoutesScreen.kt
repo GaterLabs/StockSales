@@ -50,7 +50,7 @@ import com.example.ui.theme.AppThemeColors
 import com.example.ui.util.LocalAppStrings
 import com.example.ui.util.LocationHelper
 import com.example.ui.viewmodel.SalesViewModel
-import LocationTrackingService
+import com.example.service.LocationTrackingService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
