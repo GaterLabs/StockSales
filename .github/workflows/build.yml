@@ -40,6 +40,9 @@ jobs:
         if: env.HAS_KEYSTORE == 'true'
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
 
+      - name: Generate debug keystore
+        run: keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
