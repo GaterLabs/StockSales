@@ -50,6 +50,7 @@ import com.example.ui.theme.AppThemeColors
 import com.example.ui.util.LocalAppStrings
 import com.example.ui.util.LocationHelper
 import com.example.ui.viewmodel.SalesViewModel
+import LocationTrackingService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -340,43 +341,42 @@ fun RoutesScreen(
                     .collectAsState(initial = emptyList())
                 val gpsSession by viewModel.getGpsSession(activeRoute.id, todayDateStr)
                     .collectAsState(initial = null)
-                val isTrackingActive by com.example.service.LocationTrackingService.isRunning.let {
-                    remember { mutableStateOf(it) }
-                }
-                val currentTrackingRouteId = com.example.service.LocationTrackingService.currentTrackingRouteId
+                val isTrackingActive = LocationTrackingService.isRunning
+                val currentTrackingRouteId = LocationTrackingService.currentTrackingRouteId
 
                 val routeStores = remember(stores, activeRoute) {
                     stores.filter { it.routeId == activeRoute.id }
                 }
 
-                // Permission launcher for GPS tracking
+                // Permission launcher for GPS tracking (all at once)
+                val bgPermissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { _ ->
+                    val intent = Intent(context, LocationTrackingService::class.java).apply {
+                        action = LocationTrackingService.ACTION_START
+                        putExtra(LocationTrackingService.EXTRA_ROUTE_ID, activeRoute.id)
+                    }
+                    ContextCompat.startForegroundService(context, intent)
+                }
+
                 val gpsTrackingPermissionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestMultiplePermissions()
                 ) { permissions ->
                     val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                             permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
                     if (granted) {
-                        // Also request background location on Android 10+
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            val bgGranted = permissions[Manifest.permission.ACCESS_BACKGROUND_LOCATION] == true
-                            if (!bgGranted) {
-                                // Try again with background location
-                                val bgLauncher = rememberLauncherForActivityResult(
-                                    contract = ActivityResultContracts.RequestPermission()
-                                ) { _ ->
-                                    val intent = Intent(context, com.example.service.LocationTrackingService::class.java).apply {
-                                        action = com.example.service.LocationTrackingService.ACTION_START
-                                        putExtra(com.example.service.LocationTrackingService.EXTRA_ROUTE_ID, activeRoute.id)
-                                    }
-                                    ContextCompat.startForegroundService(context, intent)
-                                }
-                                bgLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                            val hasBgLoc = ContextCompat.checkSelfPermission(
+                                context, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (!hasBgLoc) {
+                                bgPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                                 return@rememberLauncherForActivityResult
                             }
                         }
-                        val intent = Intent(context, com.example.service.LocationTrackingService::class.java).apply {
-                            action = com.example.service.LocationTrackingService.ACTION_START
-                            putExtra(com.example.service.LocationTrackingService.EXTRA_ROUTE_ID, activeRoute.id)
+                        val intent = Intent(context, LocationTrackingService::class.java).apply {
+                            action = LocationTrackingService.ACTION_START
+                            putExtra(LocationTrackingService.EXTRA_ROUTE_ID, activeRoute.id)
                         }
                         ContextCompat.startForegroundService(context, intent)
                     }
@@ -388,7 +388,7 @@ fun RoutesScreen(
                         routeName = activeRoute.name,
                         gpsPoints = gpsPoints,
                         stores = routeStores,
-                        isTrackingActive = LocationTrackingService.isRunning,
+                        isTrackingActive = isTrackingActive,
                         currentTrackingRouteId = currentTrackingRouteId,
                         todayDateString = todayDateStr,
                         onStartTracking = {
@@ -415,9 +415,9 @@ fun RoutesScreen(
                                     }
                                 }
                                 // Already have all permissions, start directly
-                                val intent = Intent(context, com.example.service.LocationTrackingService::class.java).apply {
-                                    action = com.example.service.LocationTrackingService.ACTION_START
-                                    putExtra(com.example.service.LocationTrackingService.EXTRA_ROUTE_ID, activeRoute.id)
+                                val intent = Intent(context, LocationTrackingService::class.java).apply {
+                                    action = LocationTrackingService.ACTION_START
+                                    putExtra(LocationTrackingService.EXTRA_ROUTE_ID, activeRoute.id)
                                 }
                                 ContextCompat.startForegroundService(context, intent)
                             } else {
@@ -430,8 +430,8 @@ fun RoutesScreen(
                             }
                         },
                         onStopTracking = {
-                            val intent = Intent(context, com.example.service.LocationTrackingService::class.java).apply {
-                                action = com.example.service.LocationTrackingService.ACTION_STOP
+                            val intent = Intent(context, LocationTrackingService::class.java).apply {
+                                action = LocationTrackingService.ACTION_STOP
                             }
                             context.startService(intent)
                         },

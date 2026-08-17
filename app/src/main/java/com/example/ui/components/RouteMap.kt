@@ -185,6 +185,7 @@ fun OsmMapView(
             }
         },
         update = { map ->
+            val ctx = map.context
             map.overlays.clear()
 
             // Add GPS polyline
@@ -242,7 +243,7 @@ private fun addMarker(map: MapView, context: Context, lat: Double, lng: Double, 
         position = GeoPoint(lat, lng)
         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
         this.title = title
-        this.subTitle = String.format("%.6f, %.6f", lat, lng)
+        this.snippet = String.format("%.6f, %.6f", lat, lng)
 
         // Create colored circle bitmap
         val size = 32
