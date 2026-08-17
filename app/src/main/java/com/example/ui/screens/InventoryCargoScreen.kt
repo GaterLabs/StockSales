@@ -87,7 +87,8 @@ fun InventoryCargoScreen(
 
                 PrimaryTabRow(
                     selectedTabIndex = selectedTab,
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 ) {
                     tabs.forEachIndexed { index, title ->
                         Tab(
@@ -110,14 +111,16 @@ fun InventoryCargoScreen(
                     onClick = { showAddProductDialog = true },
                     icon = { Icon(Icons.Default.Add, contentDescription = null) },
                     text = { Text(strings.btnAddProduct) },
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             } else if (selectedTab == 0) {
                 ExtendedFloatingActionButton(
                     onClick = { showAddLoadDialog = true },
                     icon = { Icon(Icons.Default.LocalShipping, contentDescription = null) },
                     text = { Text(strings.btnAddCargo) },
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             }
         },
@@ -444,7 +447,7 @@ fun CargoLoadTab(
                         Icon(
                             Icons.Default.LocalShipping,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Column {
                             Text(
@@ -701,7 +704,7 @@ fun ProductCatalogTab(
                             Icons.Default.Category,
                             contentDescription = null,
                             modifier = Modifier.size(36.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }

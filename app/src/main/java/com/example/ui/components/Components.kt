@@ -335,7 +335,7 @@ fun StoreVisitAgingBadge(
     val (bg, fg, icon) = when (aging.level) {
         AgingLevel.NEW_STORE -> Triple(
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.onPrimaryContainer,
             Icons.Default.FiberNew
         )
         AgingLevel.FRESH -> Triple(

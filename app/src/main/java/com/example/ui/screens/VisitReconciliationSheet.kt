@@ -241,12 +241,12 @@ fun VisitReconciliationSheet(
                                 text = "🌟 ${strings.initialDropBadge}",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
                                 text = strings.initialDropDesc,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                             )
                         }
                     }
@@ -367,7 +367,7 @@ fun VisitReconciliationSheet(
                                     Text(
                                         text = "1 ${item.unitName} = ${item.packSize} pcs | ${SalesViewModel.formatRupiah(item.sellPrice)}/${item.unitName} (${SalesViewModel.formatRupiah(item.pricePerPc)}/pc)",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -441,20 +441,20 @@ fun VisitReconciliationSheet(
                                             text = "${strings.soldPcsLabel.uppercase()} (LAKU)",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
                                             text = "${item.soldPcs} Pcs",
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.ExtraBold,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                         Text(
                                             text = SalesViewModel.formatRupiah(item.subtotalDue),
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                     }
                                 }
@@ -685,7 +685,7 @@ fun VisitReconciliationSheet(
                                             text = "📦 ${strings.totalEndingStockLabel}: Sisa ${item.remainingPcs} pcs + Drop ${item.totalNewDroppedPcs} pcs = ${item.finalStockPcs} Pcs (${item.formatPackAndPcs(item.finalStockPcs)})",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                                         )
                                     }

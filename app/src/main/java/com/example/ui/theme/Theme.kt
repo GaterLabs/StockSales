@@ -30,7 +30,13 @@ private val DarkColorScheme = darkColorScheme(
     surfaceVariant = DarkHighDensitySurfaceVariant,
     onSurfaceVariant = DarkHighDensityOnSurfaceVariant,
     outline = DarkHighDensityOutline,
-    outlineVariant = DarkHighDensityOutlineVariant
+    outlineVariant = DarkHighDensityOutlineVariant,
+    error = DarkHighDensityError,
+    onError = DarkHighDensityOnError,
+    errorContainer = DarkHighDensityErrorContainer,
+    onErrorContainer = DarkHighDensityOnErrorContainer,
+    inverseSurface = DarkHighDensityInverseSurface,
+    inverseOnSurface = DarkHighDensityInverseOnSurface
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -53,7 +59,13 @@ private val LightColorScheme = lightColorScheme(
     surfaceVariant = HighDensitySurfaceVariant,
     onSurfaceVariant = HighDensityOnSurfaceVariant,
     outline = HighDensityOutline,
-    outlineVariant = HighDensityOutlineVariant
+    outlineVariant = HighDensityOutlineVariant,
+    error = HighDensityError,
+    onError = HighDensityOnError,
+    errorContainer = HighDensityErrorContainer,
+    onErrorContainer = HighDensityOnErrorContainer,
+    inverseSurface = HighDensityInverseSurface,
+    inverseOnSurface = HighDensityInverseOnSurface
 )
 
 @Composable

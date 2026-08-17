@@ -212,7 +212,7 @@ fun MainAppScreen(viewModel: SalesViewModel) {
                         text = strings.drawerSectionOperations,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
 
@@ -267,7 +267,7 @@ fun MainAppScreen(viewModel: SalesViewModel) {
                         text = strings.drawerSectionReports,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
 
@@ -303,7 +303,7 @@ fun MainAppScreen(viewModel: SalesViewModel) {
                         text = strings.drawerSectionSystem,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
 
