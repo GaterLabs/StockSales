@@ -207,3 +207,34 @@ data class VanReturnEntity(
     val returnedQty: Int,          // Barang sisa yang dikembalikan dari warung
     val timestamp: Long = System.currentTimeMillis()
 )
+
+@Entity(
+    tableName = "gps_tracks",
+    indices = [Index("routeId"), Index("dateString")]
+)
+data class GpsTrackEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val routeId: Long,
+    val dateString: String,        // format: "YYYY-MM-DD"
+    val latitude: Double,
+    val longitude: Double,
+    val speed: Float = 0f,        // m/s
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(
+    tableName = "gps_sessions",
+    indices = [Index("routeId"), Index("dateString")]
+)
+data class GpsSessionEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val routeId: Long,
+    val dateString: String,
+    val startTime: Long,
+    val endTime: Long? = null,
+    val totalPoints: Int = 0,
+    val totalDistanceMeters: Float = 0f,
+    val isActive: Boolean = false
+)

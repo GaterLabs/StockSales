@@ -18,6 +18,8 @@ class SalesRepository(private val database: AppDatabase) {
     private val vanLoadDao = database.vanLoadDao()
     private val vanReturnDao = database.vanReturnDao()
     private val transactionDao = database.transactionDao()
+    private val gpsTrackDao = database.gpsTrackDao()
+    private val gpsSessionDao = database.gpsSessionDao()
 
     // Products
     val allProducts: Flow<List<ProductEntity>> = productDao.getAllProducts()
@@ -274,6 +276,24 @@ class SalesRepository(private val database: AppDatabase) {
         syncVanLoadAfterReconciliation(dateCode, reconciledItems)
 
         transaction.copy(id = transactionId)
+    }
+
+    // GPS Tracking
+    fun getGpsPointsForRouteAndDate(routeId: Long, dateString: String): Flow<List<GpsTrackEntity>> =
+        gpsTrackDao.getPointsForRouteAndDate(routeId, dateString)
+
+    fun getGpsPointCountForRouteAndDate(routeId: Long, dateString: String): Flow<Int> =
+        gpsTrackDao.getPointCountForRouteAndDate(routeId, dateString)
+
+    suspend fun deleteGpsPointsForRouteAndDate(routeId: Long, dateString: String) = withContext(Dispatchers.IO) {
+        gpsTrackDao.deletePointsForRouteAndDate(routeId, dateString)
+    }
+
+    fun observeGpsSessionForRouteAndDate(routeId: Long, dateString: String): Flow<GpsSessionEntity?> =
+        gpsSessionDao.observeSessionForRouteAndDate(routeId, dateString)
+
+    suspend fun getGpsSessionForRouteAndDate(routeId: Long, dateString: String): GpsSessionEntity? = withContext(Dispatchers.IO) {
+        gpsSessionDao.getSessionForRouteAndDate(routeId, dateString)
     }
 }
 

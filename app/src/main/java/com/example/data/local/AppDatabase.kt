@@ -19,9 +19,11 @@ import kotlinx.coroutines.launch
         VanLoadEntity::class,
         VanReturnEntity::class,
         VisitTransactionEntity::class,
-        TransactionItemEntity::class
+        TransactionItemEntity::class,
+        GpsTrackEntity::class,
+        GpsSessionEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -33,6 +35,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun vanLoadDao(): VanLoadDao
     abstract fun vanReturnDao(): VanReturnDao
     abstract fun transactionDao(): TransactionDao
+    abstract fun gpsTrackDao(): GpsTrackDao
+    abstract fun gpsSessionDao(): GpsSessionDao
 
     companion object {
         @Volatile

@@ -334,3 +334,51 @@ interface VanReturnDao {
     @Query("DELETE FROM van_returns")
     suspend fun deleteAllReturns()
 }
+
+@Dao
+interface GpsTrackDao {
+    @Insert
+    suspend fun insertPoint(point: GpsTrackEntity): Long
+
+    @Insert
+    suspend fun insertPoints(points: List<GpsTrackEntity>)
+
+    @Query("SELECT * FROM gps_tracks WHERE routeId = :routeId AND dateString = :dateString ORDER BY timestamp ASC")
+    fun getPointsForRouteAndDate(routeId: Long, dateString: String): Flow<List<GpsTrackEntity>>
+
+    @Query("SELECT * FROM gps_tracks WHERE routeId = :routeId AND dateString = :dateString ORDER BY timestamp ASC")
+    suspend fun getPointsForRouteAndDateSnapshot(routeId: Long, dateString: String): List<GpsTrackEntity>
+
+    @Query("SELECT COUNT(*) FROM gps_tracks WHERE routeId = :routeId AND dateString = :dateString")
+    fun getPointCountForRouteAndDate(routeId: Long, dateString: String): Flow<Int>
+
+    @Query("DELETE FROM gps_tracks WHERE routeId = :routeId AND dateString = :dateString")
+    suspend fun deletePointsForRouteAndDate(routeId: Long, dateString: String)
+
+    @Query("DELETE FROM gps_tracks")
+    suspend fun deleteAllPoints()
+}
+
+@Dao
+interface GpsSessionDao {
+    @Insert
+    suspend fun insertSession(session: GpsSessionEntity): Long
+
+    @Query("SELECT * FROM gps_sessions WHERE routeId = :routeId AND dateString = :dateString LIMIT 1")
+    suspend fun getSessionForRouteAndDate(routeId: Long, dateString: String): GpsSessionEntity?
+
+    @Query("SELECT * FROM gps_sessions WHERE routeId = :routeId AND dateString = :dateString LIMIT 1")
+    fun observeSessionForRouteAndDate(routeId: Long, dateString: String): Flow<GpsSessionEntity?>
+
+    @Query("UPDATE gps_sessions SET isActive = 0, endTime = :endTime, totalPoints = :totalPoints, totalDistanceMeters = :totalDistance WHERE id = :id")
+    suspend fun stopSession(id: Long, endTime: Long, totalPoints: Int, totalDistance: Float)
+
+    @Query("UPDATE gps_sessions SET totalPoints = :totalPoints, totalDistanceMeters = :totalDistance WHERE id = :id")
+    suspend fun updateSessionStats(id: Long, totalPoints: Int, totalDistance: Float)
+
+    @Query("SELECT * FROM gps_sessions ORDER BY dateString DESC, startTime DESC")
+    suspend fun getAllSessionsSnapshot(): List<GpsSessionEntity>
+
+    @Query("DELETE FROM gps_sessions")
+    suspend fun deleteAllSessions()
+}

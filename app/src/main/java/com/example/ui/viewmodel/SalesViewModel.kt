@@ -155,6 +155,22 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
     val todayReturns: StateFlow<List<VanReturnEntity>> = repository.getVanReturnsForDate(todayDateString)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // GPS Tracking
+    fun getGpsPoints(routeId: Long, dateString: String = todayDateString) =
+        repository.getGpsPointsForRouteAndDate(routeId, dateString)
+
+    fun getGpsPointCount(routeId: Long, dateString: String = todayDateString) =
+        repository.getGpsPointCountForRouteAndDate(routeId, dateString)
+
+    fun getGpsSession(routeId: Long, dateString: String = todayDateString) =
+        repository.observeGpsSessionForRouteAndDate(routeId, dateString)
+
+    fun deleteGpsHistory(routeId: Long, dateString: String = todayDateString) {
+        viewModelScope.launch {
+            repository.deleteGpsPointsForRouteAndDate(routeId, dateString)
+        }
+    }
+
     // Date Filter for Analytics
     val analyticsDateFilter = MutableStateFlow(DateFilterType.THIS_WEEK)
     val customAnalyticsDate = MutableStateFlow<String?>(null) // "yyyy-MM-dd"

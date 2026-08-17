@@ -2,7 +2,9 @@ package com.example.ui.screens
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import android.location.Location
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,12 +35,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.data.local.ConsignmentProductDetail
 import com.example.data.model.ProductEntity
 import com.example.data.model.RouteEntity
 import com.example.data.model.StoreEntity
 import com.example.data.model.VisitTransactionEntity
 import com.example.ui.components.ReceiptDialog
+import com.example.ui.components.RouteMapCard
 import com.example.ui.components.StatusBadge
 import com.example.ui.components.StoreDistanceBadge
 import com.example.ui.components.StoreVisitAgingBadge
@@ -326,6 +330,115 @@ fun RoutesScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // GPS Tracking Map
+            if (activeRoute != null) {
+                val todayDateStr = viewModel.todayDateString
+                val gpsPoints by viewModel.getGpsPoints(activeRoute.id, todayDateStr)
+                    .collectAsState(initial = emptyList())
+                val gpsSession by viewModel.getGpsSession(activeRoute.id, todayDateStr)
+                    .collectAsState(initial = null)
+                val isTrackingActive by com.example.service.LocationTrackingService.isRunning.let {
+                    remember { mutableStateOf(it) }
+                }
+                val currentTrackingRouteId = com.example.service.LocationTrackingService.currentTrackingRouteId
+
+                val routeStores = remember(stores, activeRoute) {
+                    stores.filter { it.routeId == activeRoute.id }
+                }
+
+                // Permission launcher for GPS tracking
+                val gpsTrackingPermissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestMultiplePermissions()
+                ) { permissions ->
+                    val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+                    if (granted) {
+                        // Also request background location on Android 10+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            val bgGranted = permissions[Manifest.permission.ACCESS_BACKGROUND_LOCATION] == true
+                            if (!bgGranted) {
+                                // Try again with background location
+                                val bgLauncher = rememberLauncherForActivityResult(
+                                    contract = ActivityResultContracts.RequestPermission()
+                                ) { _ ->
+                                    val intent = Intent(context, com.example.service.LocationTrackingService::class.java).apply {
+                                        action = com.example.service.LocationTrackingService.ACTION_START
+                                        putExtra(com.example.service.LocationTrackingService.EXTRA_ROUTE_ID, activeRoute.id)
+                                    }
+                                    ContextCompat.startForegroundService(context, intent)
+                                }
+                                bgLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                                return@rememberLauncherForActivityResult
+                            }
+                        }
+                        val intent = Intent(context, com.example.service.LocationTrackingService::class.java).apply {
+                            action = com.example.service.LocationTrackingService.ACTION_START
+                            putExtra(com.example.service.LocationTrackingService.EXTRA_ROUTE_ID, activeRoute.id)
+                        }
+                        ContextCompat.startForegroundService(context, intent)
+                    }
+                }
+
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)) {
+                    RouteMapCard(
+                        routeId = activeRoute.id,
+                        routeName = activeRoute.name,
+                        gpsPoints = gpsPoints,
+                        stores = routeStores,
+                        isTrackingActive = LocationTrackingService.isRunning,
+                        currentTrackingRouteId = currentTrackingRouteId,
+                        todayDateString = todayDateStr,
+                        onStartTracking = {
+                            // Check permissions
+                            val hasFineLoc = ContextCompat.checkSelfPermission(
+                                context, Manifest.permission.ACCESS_FINE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            if (hasFineLoc) {
+                                // On Android 10+, need background location too
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    val hasBgLoc = ContextCompat.checkSelfPermission(
+                                        context, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                    if (!hasBgLoc) {
+                                        gpsTrackingPermissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                                                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                                            )
+                                        )
+                                        return@RouteMapCard
+                                    }
+                                }
+                                // Already have all permissions, start directly
+                                val intent = Intent(context, com.example.service.LocationTrackingService::class.java).apply {
+                                    action = com.example.service.LocationTrackingService.ACTION_START
+                                    putExtra(com.example.service.LocationTrackingService.EXTRA_ROUTE_ID, activeRoute.id)
+                                }
+                                ContextCompat.startForegroundService(context, intent)
+                            } else {
+                                gpsTrackingPermissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            }
+                        },
+                        onStopTracking = {
+                            val intent = Intent(context, com.example.service.LocationTrackingService::class.java).apply {
+                                action = com.example.service.LocationTrackingService.ACTION_STOP
+                            }
+                            context.startService(intent)
+                        },
+                        onDeleteHistory = {
+                            viewModel.deleteGpsHistory(activeRoute.id, todayDateStr)
+                        }
+                    )
                 }
             }
 
