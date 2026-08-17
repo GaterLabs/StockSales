@@ -204,6 +204,20 @@ interface AppStrings {
     val cargoDistributed: String
     val cargoRemaining: String
     val cargoDamaged: String
+    val tabHistory: String
+    val setorLabel: String
+    val setorDone: String
+    val setorPending: String
+    val setorAll: String
+    val unsetorLabel: String
+    val totalLoadCost: String
+    val totalSetor: String
+    val totalUnsetored: String
+    val costPerPack: String
+    val emptyHistoryTitle: String
+    val emptyHistoryDesc: String
+    val loadFromFactory: String
+    val returnedGoods: String
     val emptyCargoTitle: String
     val emptyCargoDesc: String
     val btnLoadCargoNow: String
@@ -520,6 +534,20 @@ object AppStringsEn : AppStrings {
     override val cargoDistributed = "Distributed"
     override val cargoRemaining = "In Vehicle"
     override val cargoDamaged = "Damaged"
+    override val tabHistory = "History"
+    override val setorLabel = "Setor"
+    override val setorDone = "Settled"
+    override val setorPending = "Unsettled"
+    override val setorAll = "Settle All"
+    override val unsetorLabel = "Undo Settle"
+    override val totalLoadCost = "Total Load Cost"
+    override val totalSetor = "Total Settled"
+    override val totalUnsetored = "Total Unsettled"
+    override val costPerPack = "Cost / Pack"
+    override val emptyHistoryTitle = "No Load History"
+    override val emptyHistoryDesc = "Load cargo first to see history here"
+    override val loadFromFactory = "From Factory"
+    override val returnedGoods = "Returned Goods"
     override val emptyCargoTitle = "Vehicle Cargo Empty"
     override val emptyCargoDesc = "Load inventory into your vehicle before starting daily delivery routes."
     override val btnLoadCargoNow = "Load Cargo Now"
@@ -836,6 +864,20 @@ object AppStringsId : AppStrings {
     override val cargoDistributed = "Didistribusikan"
     override val cargoRemaining = "Sisa di Mobil"
     override val cargoDamaged = "Rusak"
+    override val tabHistory = "Riwayat"
+    override val setorLabel = "Setor"
+    override val setorDone = "Lunas"
+    override val setorPending = "Belum Setor"
+    override val setorAll = "Setor Semua"
+    override val unsetorLabel = "Batalkan Setor"
+    override val totalLoadCost = "Total Biaya Muatan"
+    override val totalSetor = "Total Disetor"
+    override val totalUnsetored = "Belum Disetor"
+    override val costPerPack = "Modal / Pack"
+    override val emptyHistoryTitle = "Belum Ada Riwayat Muatan"
+    override val emptyHistoryDesc = "Muat barang dulu untuk melihat riwayat"
+    override val loadFromFactory = "Dari Pabrik"
+    override val returnedGoods = "Barang Sisa"
     override val emptyCargoTitle = "Muatan Kendaraan Kosong"
     override val emptyCargoDesc = "Muat stok barang dari gudang ke kendaraan sebelum berangkat keliling rute."
     override val btnLoadCargoNow = "Muat Barang Sekarang"

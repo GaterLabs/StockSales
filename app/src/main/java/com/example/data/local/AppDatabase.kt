@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
         GpsTrackEntity::class,
         GpsSessionEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

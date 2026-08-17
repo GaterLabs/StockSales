@@ -249,6 +249,27 @@ interface VanLoadDao {
 
     @Query("DELETE FROM van_loads")
     suspend fun deleteAllVanLoads()
+
+    @Query("SELECT * FROM van_loads WHERE dateString = :dateString")
+    suspend fun getLoadsForDateSnapshot(dateString: String): List<VanLoadEntity>
+
+    @Query("SELECT DISTINCT dateString FROM van_loads ORDER BY dateString DESC")
+    fun getAllLoadDates(): Flow<List<String>>
+
+    @Query("SELECT * FROM van_loads ORDER BY dateString DESC, id ASC")
+    fun getAllLoads(): Flow<List<VanLoadEntity>>
+
+    @Query("UPDATE van_loads SET isSetored = 1, setorAmount = :setorAmount, setorTimestamp = :setorTimestamp, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun markAsSetored(id: Long, setorAmount: Double, setorTimestamp: Long, updatedAt: Long)
+
+    @Query("UPDATE van_loads SET isSetored = 0, setorAmount = 0, setorTimestamp = NULL, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun unmarkSetored(id: Long, updatedAt: Long)
+
+    @Query("SELECT SUM(initialLoadedQty * costPerPack) FROM van_loads WHERE dateString = :dateString AND isSetored = 0")
+    suspend fun getTotalUnsetoredForDate(dateString: String): Double?
+
+    @Query("SELECT SUM(initialLoadedQty * costPerPack) FROM van_loads WHERE dateString = :dateString")
+    suspend fun getTotalLoadCostForDate(dateString: String): Double?
 }
 
 @Dao

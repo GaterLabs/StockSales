@@ -105,9 +105,13 @@ data class VanLoadEntity(
     val id: Long = 0,
     val dateString: String,        // format: "YYYY-MM-DD"
     val productId: Long,
-    val initialLoadedQty: Int,    // Muatan pagi yang dibawa di motor/mobil
-    val returnedQty: Int = 0,     // Sisa bawaan yang dibawa pulang sore
-    val damagedQty: Int = 0,      // Barang rusak/pecah
+    val initialLoadedQty: Int,     // Muatan baru dari pabrik (dalam Pack)
+    val returnedQty: Int = 0,      // Barang sisa dari warung (dalam Pcs)
+    val damagedQty: Int = 0,       // Barang rusak/pecah (dalam Pcs)
+    val costPerPack: Double = 0.0, // Harga modal per Pack dari pabrik
+    val isSetored: Boolean = false, // Sudah setor ke pabrik?
+    val setorAmount: Double = 0.0, // Jumlah yang disetor (initialLoadedQty × costPerPack)
+    val setorTimestamp: Long? = null, // Kapan disetor
     val notes: String = "",
     val updatedAt: Long = System.currentTimeMillis()
 )

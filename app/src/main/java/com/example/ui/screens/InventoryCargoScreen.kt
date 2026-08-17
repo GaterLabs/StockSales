@@ -40,12 +40,13 @@ fun InventoryCargoScreen(
 ) {
     val strings = LocalAppStrings.current
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf(strings.tabVehicleCargo, strings.tabFieldStock, strings.tabCatalog)
+    val tabs = listOf(strings.tabVehicleCargo, strings.tabFieldStock, strings.tabHistory, strings.tabCatalog)
 
     val products by viewModel.allProducts.collectAsState()
     val todayLoads by viewModel.todayLoads.collectAsState()
     val todayDistributedByProduct by viewModel.todayDistributedByProduct.collectAsState()
     val todayReturns by viewModel.todayReturns.collectAsState()
+    val allLoads by viewModel.allLoads.collectAsState()
     val fieldStockSummaries by viewModel.fieldStockSummaries.collectAsState()
 
     var showAddProductDialog by remember { mutableStateOf(false) }
@@ -73,7 +74,7 @@ fun InventoryCargoScreen(
                         )
                     },
                     actions = {
-                        if (selectedTab == 2) {
+                        if (selectedTab == 3) {
                             IconButton(onClick = { showAddProductDialog = true }) {
                                 Icon(Icons.Default.AddCircle, contentDescription = strings.btnAddProduct)
                             }
@@ -109,7 +110,7 @@ fun InventoryCargoScreen(
             }
         },
         floatingActionButton = {
-            if (selectedTab == 2) {
+            if (selectedTab == 3) {
                 ExtendedFloatingActionButton(
                     onClick = { showAddProductDialog = true },
                     icon = { Icon(Icons.Default.Add, contentDescription = null) },
@@ -147,7 +148,12 @@ fun InventoryCargoScreen(
                     fieldStockSummaries = fieldStockSummaries,
                     viewModel = viewModel
                 )
-                2 -> ProductCatalogTab(
+                2 -> LoadHistoryTab(
+                    allLoads = allLoads,
+                    products = products,
+                    viewModel = viewModel
+                )
+                3 -> ProductCatalogTab(
                     products = products,
                     viewModel = viewModel,
                     onAddProduct = { showAddProductDialog = true },
@@ -320,6 +326,7 @@ fun InventoryCargoScreen(
     if (showAddLoadDialog) {
         var selectedProdId by remember { mutableStateOf(products.firstOrNull()?.id ?: 0L) }
         var loadQtyText by remember { mutableStateOf("0") }
+        var costPerPackText by remember { mutableStateOf("") }
         var notes by remember { mutableStateOf("") }
 
         AlertDialog(
@@ -358,6 +365,15 @@ fun InventoryCargoScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
+                        value = costPerPackText,
+                        onValueChange = { costPerPackText = it },
+                        label = { Text(strings.costPerPack) },
+                        placeholder = { Text("10000") },
+                        leadingIcon = { Text("Rp", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
                         value = notes,
                         onValueChange = { notes = it },
                         label = { Text(strings.notesLabel) },
@@ -370,8 +386,9 @@ fun InventoryCargoScreen(
                 Button(
                     onClick = {
                         val qty = loadQtyText.toIntOrNull() ?: 0
+                        val cost = costPerPackText.toDoubleOrNull() ?: 0.0
                         if (selectedProdId != 0L && qty > 0) {
-                            viewModel.saveVanLoad(selectedProdId, qty, notes)
+                            viewModel.saveVanLoad(selectedProdId, qty, cost, notes)
                             showAddLoadDialog = false
                         }
                     }
@@ -526,6 +543,13 @@ fun CargoLoadTab(
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.SemiBold
                                 )
+                                if (load.costPerPack > 0) {
+                                    Text(
+                                        text = "${strings.costPerPack}: ${SalesViewModel.formatRupiah(load.costPerPack)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                             IconButton(onClick = { viewModel.deleteVanLoad(load) }) {
                                 Icon(
@@ -768,6 +792,197 @@ fun FieldStockTab(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LoadHistoryTab(
+    allLoads: List<VanLoadEntity>,
+    products: List<ProductEntity>,
+    viewModel: SalesViewModel
+) {
+    val strings = LocalAppStrings.current
+
+    // Group by date, sorted newest first
+    val groupedLoads = remember(allLoads) {
+        allLoads.groupBy { it.dateString }
+            .toSortedMap(compareByDescending { it })
+    }
+
+    if (groupedLoads.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Default.History,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = strings.emptyHistoryTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = strings.emptyHistoryDesc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
+            groupedLoads.forEach { (dateStr, loads) ->
+                val totalCost = loads.sumOf { it.initialLoadedQty * it.costPerPack }
+                val isAllSetored = loads.all { it.isSetored }
+                val unsetoredTotal = loads.filter { !it.isSetored }.sumOf { it.initialLoadedQty * it.costPerPack }
+
+                item(key = "header_$dateStr") {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isAllSetored) MaterialTheme.colorScheme.surface
+                            else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isAllSetored) MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = dateStr,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${loads.size} ${strings.tabVehicleCargo.lowercase()}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Surface(
+                                    color = if (isAllSetored) AppThemeColors.successColor.copy(alpha = 0.15f)
+                                    else MaterialTheme.colorScheme.errorContainer,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = if (isAllSetored) strings.setorDone else strings.setorPending,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isAllSetored) AppThemeColors.successColor
+                                        else MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+
+                            if (totalCost > 0) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                loads.forEach { load ->
+                                    val prod = products.find { it.id == load.productId }
+                                    val packCost = load.initialLoadedQty * load.costPerPack
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "${prod?.name ?: "Product #${load.productId}"}: ${load.initialLoadedQty} ${prod?.unitName ?: "Pack"}",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        Text(
+                                            text = if (load.costPerPack > 0) SalesViewModel.formatRupiah(packCost) else "-",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = strings.totalLoadCost,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = SalesViewModel.formatRupiah(totalCost),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+
+                                // Setor button
+                                Spacer(modifier = Modifier.height(10.dp))
+                                if (isAllSetored) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            loads.forEach { viewModel.unmarkSetored(it) }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Icon(Icons.Default.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(strings.unsetorLabel)
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = {
+                                            loads.filter { !it.isSetored }.forEach { viewModel.markAsSetored(it) }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = AppThemeColors.successColor
+                                        )
+                                    ) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("${strings.setorAll} • ${SalesViewModel.formatRupiah(unsetoredTotal)}")
+                                    }
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "No cost data",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

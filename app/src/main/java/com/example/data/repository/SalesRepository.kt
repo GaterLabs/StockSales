@@ -116,6 +116,36 @@ class SalesRepository(private val database: AppDatabase) {
         vanLoadDao.deleteVanLoad(load)
     }
 
+    val allLoadDates: Flow<List<String>> = vanLoadDao.getAllLoadDates()
+
+    val allLoads: Flow<List<VanLoadEntity>> = vanLoadDao.getAllLoads()
+
+    suspend fun getLoadsForDateSnapshot(dateString: String): List<VanLoadEntity> = withContext(Dispatchers.IO) {
+        vanLoadDao.getLoadsForDateSnapshot(dateString)
+    }
+
+    suspend fun markLoadAsSetored(load: VanLoadEntity) = withContext(Dispatchers.IO) {
+        val setorAmount = load.initialLoadedQty * load.costPerPack
+        vanLoadDao.markAsSetored(
+            id = load.id,
+            setorAmount = setorAmount,
+            setorTimestamp = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+        )
+    }
+
+    suspend fun unmarkLoadSetored(load: VanLoadEntity) = withContext(Dispatchers.IO) {
+        vanLoadDao.unmarkSetored(load.id, System.currentTimeMillis())
+    }
+
+    suspend fun getTotalUnsetoredForDate(dateString: String): Double = withContext(Dispatchers.IO) {
+        vanLoadDao.getTotalUnsetoredForDate(dateString) ?: 0.0
+    }
+
+    suspend fun getTotalLoadCostForDate(dateString: String): Double = withContext(Dispatchers.IO) {
+        vanLoadDao.getTotalLoadCostForDate(dateString) ?: 0.0
+    }
+
     suspend fun syncVanLoadAfterReconciliation(dateString: String, reconciledItems: List<ReconciliationItemInput>) = withContext(Dispatchers.IO) {
         for (item in reconciledItems) {
             val existingLoad = vanLoadDao.getLoadForProductOnDate(dateString, item.productId)

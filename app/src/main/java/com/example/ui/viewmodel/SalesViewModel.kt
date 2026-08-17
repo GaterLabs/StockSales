@@ -155,6 +155,25 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
     val todayReturns: StateFlow<List<VanReturnEntity>> = repository.getVanReturnsForDate(todayDateString)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Van Load History
+    val allLoadDates: StateFlow<List<String>> = repository.allLoadDates
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allLoads: StateFlow<List<VanLoadEntity>> = repository.allLoads
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun markAsSetored(load: VanLoadEntity) {
+        viewModelScope.launch {
+            repository.markLoadAsSetored(load)
+        }
+    }
+
+    fun unmarkSetored(load: VanLoadEntity) {
+        viewModelScope.launch {
+            repository.unmarkLoadSetored(load)
+        }
+    }
+
     // GPS Tracking
     fun getGpsPoints(routeId: Long, dateString: String = todayDateString) =
         repository.getGpsPointsForRouteAndDate(routeId, dateString)
@@ -391,13 +410,14 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Actions: Van Loads
-    fun saveVanLoad(productId: Long, initialQty: Int, notes: String = "") {
+    fun saveVanLoad(productId: Long, initialQty: Int, costPerPack: Double = 0.0, notes: String = "") {
         viewModelScope.launch {
             repository.saveVanLoad(
                 VanLoadEntity(
                     dateString = todayDateString,
                     productId = productId,
                     initialLoadedQty = initialQty,
+                    costPerPack = costPerPack,
                     notes = notes
                 )
             )
