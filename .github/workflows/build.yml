@@ -10,6 +10,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HAS_GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+      HAS_ENV: ${{ secrets.ENV_CONTENT != '' }}
+      HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
 
     steps:
       - name: Checkout
@@ -25,22 +29,22 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Decode google-services.json
-        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+        if: env.HAS_GOOGLE_SERVICES == 'true'
         run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
 
       - name: Create .env file
-        if: ${{ secrets.ENV_CONTENT != '' }}
+        if: env.HAS_ENV == 'true'
         run: echo "${{ secrets.ENV_CONTENT }}" > .env
 
       - name: Decode keystore
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: env.HAS_KEYSTORE == 'true'
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Build Release APK
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: env.HAS_KEYSTORE == 'true'
         run: ./gradlew assembleRelease --no-daemon
         env:
           KEYSTORE_PATH: my-upload-key.jks
@@ -54,7 +58,7 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
 
       - name: Upload Release APK
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: env.HAS_KEYSTORE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
