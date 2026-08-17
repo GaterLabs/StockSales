@@ -265,8 +265,6 @@ class SalesRepository(private val database: AppDatabase) {
                 )
             }
         }
-            }
-        }
 
         // Update Store Debt & Status
         storeDao.updateStoreDebt(store.id, updatedDebt)
