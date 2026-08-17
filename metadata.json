@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix SalesTrack",
+  "description": "Sales route consignment tracker for small businesses with real-time automatic calculations, inventory \u0026 cargo management, and sales analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

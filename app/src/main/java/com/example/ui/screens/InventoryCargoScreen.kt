@@ -1,0 +1,851 @@
+package com.example.ui.screens
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.data.model.ProductEntity
+import com.example.data.model.VanLoadEntity
+import com.example.ui.components.EditableNumberStepper
+import com.example.ui.components.NumberStepper
+import com.example.ui.components.StatCard
+import com.example.ui.theme.AppThemeColors
+import com.example.ui.util.LocalAppStrings
+import com.example.ui.viewmodel.SalesViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InventoryCargoScreen(
+    viewModel: SalesViewModel,
+    onOpenDrawer: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val strings = LocalAppStrings.current
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf(strings.tabVehicleCargo, strings.tabFieldStock, strings.tabCatalog)
+
+    val products by viewModel.allProducts.collectAsState()
+    val todayLoads by viewModel.todayLoads.collectAsState()
+    val fieldStockSummaries by viewModel.fieldStockSummaries.collectAsState()
+
+    var showAddProductDialog by remember { mutableStateOf(false) }
+    var productToEdit by remember { mutableStateOf<ProductEntity?>(null) }
+    var showAddLoadDialog by remember { mutableStateOf(false) }
+
+    Scaffold(
+        topBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                TopAppBar(
+                    navigationIcon = {
+                        IconButton(onClick = onOpenDrawer) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
+                    },
+                    title = {
+                        Text(
+                            text = strings.inventoryTitle,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    actions = {
+                        if (selectedTab == 2) {
+                            IconButton(onClick = { showAddProductDialog = true }) {
+                                Icon(Icons.Default.AddCircle, contentDescription = strings.btnAddProduct)
+                            }
+                        } else if (selectedTab == 0) {
+                            IconButton(onClick = { showAddLoadDialog = true }) {
+                                Icon(Icons.Default.AddShoppingCart, contentDescription = strings.btnAddCargo)
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                )
+
+                PrimaryTabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = {
+                                Text(
+                                    text = title,
+                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        },
+        floatingActionButton = {
+            if (selectedTab == 2) {
+                ExtendedFloatingActionButton(
+                    onClick = { showAddProductDialog = true },
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text(strings.btnAddProduct) },
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            } else if (selectedTab == 0) {
+                ExtendedFloatingActionButton(
+                    onClick = { showAddLoadDialog = true },
+                    icon = { Icon(Icons.Default.LocalShipping, contentDescription = null) },
+                    text = { Text(strings.btnAddCargo) },
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        modifier = modifier
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            when (selectedTab) {
+                0 -> CargoLoadTab(
+                    loads = todayLoads,
+                    products = products,
+                    viewModel = viewModel,
+                    onAddLoadClick = { showAddLoadDialog = true }
+                )
+                1 -> FieldStockTab(
+                    fieldStockSummaries = fieldStockSummaries,
+                    viewModel = viewModel
+                )
+                2 -> ProductCatalogTab(
+                    products = products,
+                    viewModel = viewModel,
+                    onAddProduct = { showAddProductDialog = true },
+                    onEditProduct = { productToEdit = it }
+                )
+            }
+        }
+    }
+
+    // Add / Edit Product Dialog
+    if (showAddProductDialog || productToEdit != null) {
+        val isEditing = productToEdit != null
+        val editingProd = productToEdit
+
+        var name by remember { mutableStateOf(editingProd?.name ?: "") }
+        var unitName by remember { mutableStateOf(editingProd?.unitName ?: "Pack") }
+        var packSizeText by remember { mutableStateOf(editingProd?.packSize?.toString() ?: "10") }
+        var costPriceText by remember { mutableStateOf(editingProd?.costPrice?.toInt()?.toString() ?: "0") }
+        var sellPriceText by remember { mutableStateOf(editingProd?.sellPrice?.toInt()?.toString() ?: "0") }
+        var retailPriceText by remember { mutableStateOf(editingProd?.retailPrice?.toInt()?.toString() ?: "0") }
+        var skuText by remember { mutableStateOf(editingProd?.sku ?: "") }
+        var categoryText by remember { mutableStateOf(editingProd?.category ?: "") }
+
+        val costVal = costPriceText.toDoubleOrNull() ?: 0.0
+        val sellVal = sellPriceText.toDoubleOrNull() ?: 0.0
+        val profitPerUnit = sellVal - costVal
+        val marginPct = if (sellVal > 0) (profitPerUnit / sellVal) * 100 else 0.0
+
+        AlertDialog(
+            onDismissRequest = {
+                showAddProductDialog = false
+                productToEdit = null
+            },
+            title = { Text(if (isEditing) strings.editProductDialogTitle else strings.addProductDialogTitle) },
+            text = {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    item {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = { Text("${strings.productNameLabel} *") },
+                            placeholder = { Text(strings.productNamePlaceholder) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = unitName,
+                                onValueChange = { unitName = it },
+                                label = { Text(strings.unitNameLabel) },
+                                placeholder = { Text(strings.unitNamePlaceholder) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = packSizeText,
+                                onValueChange = { packSizeText = it },
+                                label = { Text(strings.packSizeLabel) },
+                                placeholder = { Text("10") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    item {
+                        OutlinedTextField(
+                            value = costPriceText,
+                            onValueChange = { costPriceText = it },
+                            label = { Text("${strings.costPriceFieldLabel} *") },
+                            placeholder = { Text("11000") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    item {
+                        OutlinedTextField(
+                            value = sellPriceText,
+                            onValueChange = { sellPriceText = it },
+                            label = { Text("${strings.sellPriceFieldLabel} *") },
+                            placeholder = { Text("15000") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    item {
+                        // Real-time Profit Preview Chip
+                        Surface(
+                            color = AppThemeColors.profitColor.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = strings.marginPerPack,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppThemeColors.profitColor
+                                )
+                                Text(
+                                    text = "+${SalesViewModel.formatRupiah(profitPerUnit)} / $unitName (${String.format("%.1f", marginPct)}%)",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppThemeColors.profitColor
+                                )
+                            }
+                        }
+                    }
+                    item {
+                        OutlinedTextField(
+                            value = categoryText,
+                            onValueChange = { categoryText = it },
+                            label = { Text("Category") },
+                            placeholder = { Text("Snack / Beverage") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (name.isNotBlank()) {
+                            viewModel.saveProduct(
+                                ProductEntity(
+                                    id = editingProd?.id ?: 0L,
+                                    name = name.trim(),
+                                    unitName = unitName.trim().ifEmpty { "Pack" },
+                                    packSize = packSizeText.toIntOrNull() ?: 10,
+                                    costPrice = costVal,
+                                    sellPrice = sellVal,
+                                    retailPrice = retailPriceText.toDoubleOrNull() ?: 0.0,
+                                    sku = skuText.trim(),
+                                    category = categoryText.trim()
+                                )
+                            ) {
+                                showAddProductDialog = false
+                                productToEdit = null
+                            }
+                        }
+                    },
+                    enabled = name.isNotBlank() && costVal > 0 && sellVal > 0
+                ) {
+                    Text(strings.btnSave)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAddProductDialog = false
+                        productToEdit = null
+                    }
+                ) {
+                    Text(strings.btnCancel)
+                }
+            }
+        )
+    }
+
+    // Add Cargo Load Dialog
+    if (showAddLoadDialog) {
+        var selectedProdId by remember { mutableStateOf(products.firstOrNull()?.id ?: 0L) }
+        var loadQtyText by remember { mutableStateOf("0") }
+        var notes by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showAddLoadDialog = false },
+            title = { Text(strings.addCargoDialogTitle) },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(strings.selectProductLabel, style = MaterialTheme.typography.labelMedium)
+                    products.forEach { prod ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (selectedProdId == prod.id) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent
+                                )
+                                .padding(8.dp)
+                        ) {
+                            RadioButton(
+                                selected = selectedProdId == prod.id,
+                                onClick = { selectedProdId = prod.id }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(prod.name, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    OutlinedTextField(
+                        value = loadQtyText,
+                        onValueChange = { loadQtyText = it },
+                        label = { Text(strings.quantityToLoadLabel) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = notes,
+                        onValueChange = { notes = it },
+                        label = { Text(strings.notesLabel) },
+                        placeholder = { Text(strings.notesPlaceholder) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val qty = loadQtyText.toIntOrNull() ?: 0
+                        if (selectedProdId != 0L && qty > 0) {
+                            viewModel.saveVanLoad(selectedProdId, qty, notes)
+                            showAddLoadDialog = false
+                        }
+                    }
+                ) {
+                    Text(strings.btnSave)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddLoadDialog = false }) {
+                    Text(strings.btnCancel)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun CargoLoadTab(
+    loads: List<VanLoadEntity>,
+    products: List<ProductEntity>,
+    viewModel: SalesViewModel,
+    onAddLoadClick: () -> Unit
+) {
+    val strings = LocalAppStrings.current
+    if (loads.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Default.LocalShipping,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.outline
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = strings.emptyCargoTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = strings.emptyCargoDesc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onAddLoadClick) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(strings.btnLoadCargoNow)
+                }
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
+            item {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.LocalShipping,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Column {
+                            Text(
+                                text = strings.tabVehicleCargo,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${viewModel.todayDateString} • ${loads.size} ${strings.tabCatalog}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            items(loads, key = { it.id }) { load ->
+                val prod = products.find { it.id == load.productId }
+                var returnedQty by remember(load) { mutableIntStateOf(load.returnedQty) }
+                var damagedQty by remember(load) { mutableIntStateOf(load.damagedQty) }
+
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = prod?.name ?: "Product #${load.productId}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${strings.loadedLabel}: ${load.initialLoadedQty} ${prod?.unitName ?: "Pack"}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            IconButton(onClick = { viewModel.deleteVanLoad(load) }) {
+                                Icon(
+                                    Icons.Default.DeleteOutline,
+                                    contentDescription = strings.btnDelete,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            NumberStepper(
+                                value = returnedQty,
+                                onValueChange = {
+                                    returnedQty = it
+                                    viewModel.updateVanLoadReturn(load.id, returnedQty, damagedQty)
+                                },
+                                label = strings.cargoRemaining
+                            )
+
+                            NumberStepper(
+                                value = damagedQty,
+                                onValueChange = {
+                                    damagedQty = it
+                                    viewModel.updateVanLoadReturn(load.id, returnedQty, damagedQty)
+                                },
+                                label = "Return / Damaged"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FieldStockTab(
+    fieldStockSummaries: List<com.example.data.local.ProductFieldStockSummary>,
+    viewModel: SalesViewModel
+) {
+    val strings = LocalAppStrings.current
+    val totalFieldPcs = fieldStockSummaries.sumOf { it.totalFieldQuantity }
+    val totalPacks = fieldStockSummaries.sumOf {
+        val safeSize = if (it.packSize > 0) it.packSize else 1
+        it.totalFieldQuantity / safeSize
+    }
+    val totalValue = fieldStockSummaries.sumOf {
+        val safeSize = if (it.packSize > 0) it.packSize else 1
+        it.totalFieldQuantity * (it.sellPrice / safeSize)
+    }
+    val totalCost = fieldStockSummaries.sumOf {
+        val safeSize = if (it.packSize > 0) it.packSize else 1
+        it.totalFieldQuantity * (it.costPrice / safeSize)
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 80.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                StatCard(
+                    title = strings.fieldStockTitle,
+                    value = if (totalFieldPcs > 0) "$totalPacks ${strings.packUnit}" else "0 ${strings.packUnit}",
+                    subtitle = "$totalFieldPcs pcs • ${strings.storesHoldingStock}",
+                    icon = Icons.Default.Storefront,
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                StatCard(
+                    title = strings.fieldStockValuation,
+                    value = SalesViewModel.formatRupiah(totalValue),
+                    subtitle = "HPP: ${SalesViewModel.formatRupiah(totalCost)}",
+                    icon = Icons.Default.MonetizationOn,
+                    accentColor = AppThemeColors.successColor,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        item {
+            Text(
+                text = strings.fieldStockTitle,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        items(fieldStockSummaries, key = { it.productId }) { item ->
+            val safePackSize = if (item.packSize > 0) item.packSize else 1
+            val packs = item.totalFieldQuantity / safePackSize
+            val pcs = item.totalFieldQuantity % safePackSize
+            val qtyStr = if (packs > 0 && pcs > 0) {
+                "$packs ${item.unitName} + $pcs pcs"
+            } else if (packs > 0) {
+                "$packs ${item.unitName} (${item.totalFieldQuantity} pcs)"
+            } else {
+                "${item.totalFieldQuantity} pcs"
+            }
+            val pricePerPc = item.sellPrice / safePackSize
+            val itemValuation = item.totalFieldQuantity * pricePerPc
+
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.productName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${strings.sellPriceLabel} ${SalesViewModel.formatRupiah(item.sellPrice)}/${item.unitName} (${item.packSize} pcs) • ${SalesViewModel.formatRupiah(pricePerPc)}/pc",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            Text(
+                                text = qtyStr,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = SalesViewModel.formatRupiah(itemValuation),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProductCatalogTab(
+    products: List<ProductEntity>,
+    viewModel: SalesViewModel,
+    onAddProduct: () -> Unit,
+    onEditProduct: (ProductEntity) -> Unit
+) {
+    val strings = LocalAppStrings.current
+    if (products.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                    modifier = Modifier.size(72.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Category,
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Belum Ada Master Produk",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Daftarkan produk titip jual Anda (nama snack, harga modal pabrik, harga jual ke warung, dan estimasi laba).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onAddProduct,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(strings.addProductDialogTitle)
+                }
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
+            item {
+                Text(
+                    text = "${strings.catalogTitle} (${products.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            items(products, key = { it.id }) { product ->
+                val profit = product.sellPrice - product.costPrice
+                val margin = if (product.sellPrice > 0) (profit / product.sellPrice) * 100 else 0.0
+
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = product.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "1 ${product.unitName} (${product.packSize} pcs) • ${product.category}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Row {
+                                IconButton(onClick = { onEditProduct(product) }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(onClick = { viewModel.deleteProduct(product) }) {
+                                    Icon(
+                                        Icons.Default.DeleteOutline,
+                                        contentDescription = strings.btnDelete,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = strings.costPriceLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = SalesViewModel.formatRupiah(product.costPrice),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    text = strings.sellPriceLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = SalesViewModel.formatRupiah(product.sellPrice),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = strings.marginPerPack,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = AppThemeColors.profitColor
+                                )
+                                Text(
+                                    text = "+${SalesViewModel.formatRupiah(profit)} (${String.format(java.util.Locale.US, "%.0f", margin)}%)",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppThemeColors.profitColor
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
