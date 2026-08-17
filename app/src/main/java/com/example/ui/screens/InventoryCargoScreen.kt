@@ -475,11 +475,27 @@ fun CargoLoadTab(
             items(loads, key = { it.id }) { load ->
                 val prod = products.find { it.id == load.productId }
                 var damagedQty by remember(load) { mutableIntStateOf(load.damagedQty) }
+                val packSize = prod?.packSize?.takeIf { it > 0 } ?: 10
 
-                val distributed = distributedByProduct[load.productId] ?: 0
+                // Semua dikonversi ke PCS untuk kalkulasi konsisten
+                val initialLoadedPcs = load.initialLoadedQty * packSize
+                val distributedPcs = distributedByProduct[load.productId] ?: 0  // sudah PCS dari reconciliation
                 val productReturns = returns.filter { it.productId == load.productId }
-                val totalReturned = productReturns.sumOf { it.returnedQty }
-                val sisaDiMobil = (load.initialLoadedQty - distributed + totalReturned - damagedQty).coerceAtLeast(0)
+                val totalReturnedPcs = productReturns.sumOf { it.returnedQty }  // sudah PCS
+                val damagedPcs = damagedQty  // user input = pcs
+                val sisaDiMobilPcs = (initialLoadedPcs - distributedPcs + totalReturnedPcs - damagedPcs).coerceAtLeast(0)
+
+                // Format helper: tampilkan X pack + Y pcs kalau ada sisa
+                fun formatPcsToPack(totalPcs: Int): String {
+                    val packs = totalPcs / packSize
+                    val pcs = totalPcs % packSize
+                    val unit = prod?.unitName ?: "Pack"
+                    return when {
+                        packs > 0 && pcs > 0 -> "$packs $unit + $pcs pcs"
+                        packs > 0 -> "$packs $unit"
+                        else -> "$pcs pcs"
+                    }
+                }
 
                 Card(
                     shape = RoundedCornerShape(14.dp),
@@ -536,7 +552,7 @@ fun CargoLoadTab(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "$distributed ${prod?.unitName ?: "Pack"}",
+                                    text = formatPcsToPack(distributedPcs),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -549,7 +565,7 @@ fun CargoLoadTab(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "$totalReturned ${prod?.unitName ?: "Pack"}",
+                                    text = formatPcsToPack(totalReturnedPcs),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.tertiary
@@ -562,10 +578,10 @@ fun CargoLoadTab(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "$sisaDiMobil ${prod?.unitName ?: "Pack"}",
+                                    text = formatPcsToPack(sisaDiMobilPcs),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (sisaDiMobil > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                                    color = if (sisaDiMobilPcs > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
                                 )
                             }
                         }
@@ -595,7 +611,7 @@ fun CargoLoadTab(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "${ret.returnedQty} ${prod?.unitName ?: "Pack"}",
+                                                text = formatPcsToPack(ret.returnedQty),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.tertiary
