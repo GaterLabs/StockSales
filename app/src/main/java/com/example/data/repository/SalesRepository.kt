@@ -4,6 +4,7 @@ import com.example.data.local.*
 import com.example.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
@@ -112,11 +113,40 @@ class SalesRepository(private val database: AppDatabase) {
         vanLoadDao.deleteVanLoad(load)
     }
 
+    suspend fun syncVanLoadAfterReconciliation(dateString: String, reconciledItems: List<ReconciliationItemInput>) = withContext(Dispatchers.IO) {
+        for (item in reconciledItems) {
+            if (item.newDroppedQty > 0) {
+                val existingLoad = vanLoadDao.getLoadForProductOnDate(dateString, item.productId)
+                if (existingLoad != null) {
+                    val totalDistributed = item.newDroppedQty
+                    val newReturned = (existingLoad.initialLoadedQty - totalDistributed - existingLoad.damagedQty).coerceAtLeast(0)
+                    vanLoadDao.updateVanLoadReturned(existingLoad.id, newReturned, System.currentTimeMillis())
+                }
+            }
+        }
+    }
+
     // Transactions & Analytics
     val allTransactions: Flow<List<TransactionWithItems>> = transactionDao.getAllTransactionsWithItems()
     val totalRevenue: Flow<Double?> = transactionDao.getTotalRevenue()
     val totalProfit: Flow<Double?> = transactionDao.getTotalProfit()
     val totalItemsSold: Flow<Int?> = transactionDao.getTotalItemsSold()
+
+    fun getTransactionsForDate(dateString: String): Flow<List<TransactionWithItems>> {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val date = sdf.parse(dateString) ?: return flowOf(emptyList())
+        val cal = java.util.Calendar.getInstance().apply {
+            time = date
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val startTs = cal.timeInMillis
+        cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+        val endTs = cal.timeInMillis
+        return transactionDao.getTransactionsByDateRange(startTs, endTs)
+    }
 
     fun getTransactionsByRoute(routeId: Long): Flow<List<TransactionWithItems>> =
         transactionDao.getTransactionsByRoute(routeId)
@@ -219,6 +249,9 @@ class SalesRepository(private val database: AppDatabase) {
         // Update Store Debt & Status
         storeDao.updateStoreDebt(store.id, updatedDebt)
         storeDao.updateStoreVisitStatus(store.id, System.currentTimeMillis(), true)
+
+        // Auto-sync Van Load: deduct newDroppedQty from vehicle stock
+        syncVanLoadAfterReconciliation(dateCode, reconciledItems)
 
         transaction.copy(id = transactionId)
     }

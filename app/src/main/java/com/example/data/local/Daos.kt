@@ -226,6 +226,9 @@ interface VanLoadDao {
     @Query("SELECT * FROM van_loads WHERE dateString = :dateString")
     fun getLoadsForDate(dateString: String): Flow<List<VanLoadEntity>>
 
+    @Query("SELECT * FROM van_loads WHERE dateString = :dateString AND productId = :productId")
+    suspend fun getLoadForProductOnDate(dateString: String, productId: Long): VanLoadEntity?
+
     @Query("SELECT * FROM van_loads ORDER BY dateString DESC, id ASC")
     suspend fun getAllVanLoadsSnapshot(): List<VanLoadEntity>
 
@@ -237,6 +240,9 @@ interface VanLoadDao {
 
     @Query("UPDATE van_loads SET returnedQty = :returned, damagedQty = :damaged, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateVanLoadReturn(id: Long, returned: Int, damaged: Int, updatedAt: Long)
+
+    @Query("UPDATE van_loads SET returnedQty = :returned, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateVanLoadReturned(id: Long, returned: Int, updatedAt: Long)
 
     @Delete
     suspend fun deleteVanLoad(load: VanLoadEntity)

@@ -46,6 +46,9 @@ object PdfReportGenerator {
         val totalNewDebt = transactions.sumOf { it.transaction.newDebtAdded }
         val totalTransactions = transactions.size
         val uniqueStores = transactions.map { it.transaction.storeId }.distinct().size
+        val totalCapitalDeployed = transactions.flatMap { it.items }.sumOf {
+            (it.soldQuantity + it.remainingStock) * it.costPrice
+        }
 
         // Product aggregate
         val productSalesMap = mutableMapOf<String, ProductSalesStat>()
@@ -203,7 +206,7 @@ object PdfReportGenerator {
         canvas.drawText("$totalTransactions Transaksi ($totalItemsSold item)", MARGIN + 10f, y + 54f, subtitlePaint)
 
         // Box 2: Total Laba Bersih
-        val marginPercent = if (totalRevenue > 0) (totalProfit / totalRevenue) * 100 else 0.0
+        val marginPercent = if (totalCapitalDeployed > 0) (totalProfit / totalCapitalDeployed) * 100 else 0.0
         canvas.drawText("LABA BERSIH", MARGIN + colWidth + 10f, y + 18f, subtitlePaint)
         canvas.drawText("+${SalesViewModel.formatRupiah(totalProfit)}", MARGIN + colWidth + 10f, y + 36f, greenPaint.apply { textSize = 11.5f })
         canvas.drawText("Margin: ${String.format(Locale.US, "%.1f", marginPercent)}%", MARGIN + colWidth + 10f, y + 54f, subtitlePaint)

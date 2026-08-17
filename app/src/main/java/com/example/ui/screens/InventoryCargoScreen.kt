@@ -43,6 +43,7 @@ fun InventoryCargoScreen(
 
     val products by viewModel.allProducts.collectAsState()
     val todayLoads by viewModel.todayLoads.collectAsState()
+    val todayDistributedByProduct by viewModel.todayDistributedByProduct.collectAsState()
     val fieldStockSummaries by viewModel.fieldStockSummaries.collectAsState()
 
     var showAddProductDialog by remember { mutableStateOf(false) }
@@ -135,6 +136,7 @@ fun InventoryCargoScreen(
                 0 -> CargoLoadTab(
                     loads = todayLoads,
                     products = products,
+                    distributedByProduct = todayDistributedByProduct,
                     viewModel = viewModel,
                     onAddLoadClick = { showAddLoadDialog = true }
                 )
@@ -387,6 +389,7 @@ fun InventoryCargoScreen(
 fun CargoLoadTab(
     loads: List<VanLoadEntity>,
     products: List<ProductEntity>,
+    distributedByProduct: Map<Long, Int>,
     viewModel: SalesViewModel,
     onAddLoadClick: () -> Unit
 ) {
@@ -470,6 +473,9 @@ fun CargoLoadTab(
                 var returnedQty by remember(load) { mutableIntStateOf(load.returnedQty) }
                 var damagedQty by remember(load) { mutableIntStateOf(load.damagedQty) }
 
+                val distributed = distributedByProduct[load.productId] ?: 0
+                val autoRemaining = (load.initialLoadedQty - distributed - damagedQty).coerceAtLeast(0)
+
                 Card(
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(
@@ -514,27 +520,54 @@ fun CargoLoadTab(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
                         Spacer(modifier = Modifier.height(10.dp))
 
+                        // Summary row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = strings.cargoDistributed,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$distributed ${prod?.unitName ?: "Pack"}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = strings.cargoRemaining,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$autoRemaining ${prod?.unitName ?: "Pack"}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (autoRemaining > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             NumberStepper(
-                                value = returnedQty,
-                                onValueChange = {
-                                    returnedQty = it
-                                    viewModel.updateVanLoadReturn(load.id, returnedQty, damagedQty)
-                                },
-                                label = strings.cargoRemaining
-                            )
-
-                            NumberStepper(
                                 value = damagedQty,
                                 onValueChange = {
                                     damagedQty = it
-                                    viewModel.updateVanLoadReturn(load.id, returnedQty, damagedQty)
+                                    val newAutoRemaining = (load.initialLoadedQty - distributed - damagedQty).coerceAtLeast(0)
+                                    viewModel.updateVanLoadReturn(load.id, newAutoRemaining, damagedQty)
                                 },
-                                label = "Return / Damaged"
+                                label = strings.cargoDamaged ?: "Damaged"
                             )
                         }
                     }

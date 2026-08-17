@@ -56,6 +56,7 @@ data class AnalyticsSummary(
     val totalTransactions: Int = 0,
     val totalOutstandingDebt: Double = 0.0,
     val totalFieldConsignmentStock: Int = 0,
+    val totalCapitalDeployed: Double = 0.0,
     val profitMarginPercent: Double = 0.0,
     val topSellingProducts: List<TopSellingProductStat> = emptyList(),
     val topStoresByRevenue: List<Pair<String, Double>> = emptyList(),
@@ -142,6 +143,15 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
     val todayLoads: StateFlow<List<VanLoadEntity>> = repository.getVanLoadsForDate(todayDateString)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val todayDistributedByProduct: StateFlow<Map<Long, Int>> = repository.getTransactionsForDate(todayDateString)
+        .map { txs ->
+            txs.flatMap { it.items }
+                .filter { it.newDroppedQuantity > 0 }
+                .groupBy { it.productId }
+                .mapValues { (_, items) -> items.sumOf { it.newDroppedQuantity } }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     // Date Filter for Analytics
     val analyticsDateFilter = MutableStateFlow(DateFilterType.THIS_WEEK)
     val customAnalyticsDate = MutableStateFlow<String?>(null) // "yyyy-MM-dd"
@@ -209,7 +219,10 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
         val totalCost = totalRev - totalProf
         val totalItems = filteredTx.sumOf { it.transaction.totalItemsSold }
         val totalDebt = storeList.sumOf { it.outstandingDebt }
-        val marginPct = if (totalRev > 0) (totalProf / totalRev) * 100 else 0.0
+        val totalCapitalDeployed = filteredTx.flatMap { it.items }.sumOf {
+            (it.soldQuantity + it.remainingStock) * it.costPrice
+        }
+        val marginPct = if (totalCapitalDeployed > 0) (totalProf / totalCapitalDeployed) * 100 else 0.0
 
         // Product sales aggregation
         val productSalesMap = mutableMapOf<String, TopSellingProductStat>()
@@ -281,6 +294,7 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
             totalItemsSold = totalItems,
             totalTransactions = filteredTx.size,
             totalOutstandingDebt = totalDebt,
+            totalCapitalDeployed = totalCapitalDeployed,
             profitMarginPercent = marginPct,
             topSellingProducts = topProducts,
             topStoresByRevenue = topStores,

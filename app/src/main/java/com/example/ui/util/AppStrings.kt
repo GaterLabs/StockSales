@@ -203,6 +203,7 @@ interface AppStrings {
     val cargoTotalLoaded: String
     val cargoDistributed: String
     val cargoRemaining: String
+    val cargoDamaged: String
     val emptyCargoTitle: String
     val emptyCargoDesc: String
     val btnLoadCargoNow: String
@@ -518,6 +519,7 @@ object AppStringsEn : AppStrings {
     override val cargoTotalLoaded = "Total Loaded"
     override val cargoDistributed = "Distributed"
     override val cargoRemaining = "In Vehicle"
+    override val cargoDamaged = "Damaged"
     override val emptyCargoTitle = "Vehicle Cargo Empty"
     override val emptyCargoDesc = "Load inventory into your vehicle before starting daily delivery routes."
     override val btnLoadCargoNow = "Load Cargo Now"
@@ -833,6 +835,7 @@ object AppStringsId : AppStrings {
     override val cargoTotalLoaded = "Total Dimuat"
     override val cargoDistributed = "Didistribusikan"
     override val cargoRemaining = "Sisa di Mobil"
+    override val cargoDamaged = "Rusak"
     override val emptyCargoTitle = "Muatan Kendaraan Kosong"
     override val emptyCargoDesc = "Muat stok barang dari gudang ke kendaraan sebelum berangkat keliling rute."
     override val btnLoadCargoNow = "Muat Barang Sekarang"
