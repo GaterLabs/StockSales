@@ -682,7 +682,7 @@ fun VisitReconciliationSheet(
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Text(
-                                            text = "📦 ${strings.totalEndingStockLabel}: Sisa ${item.remainingPcs} pcs + Drop ${item.totalNewDroppedPcs} pcs = ${item.finalStockPcs} Pcs (${item.formatPackAndPcs(item.finalStockPcs)})",
+                                            text = "📦 Titipan baru: ${item.totalNewDroppedPcs} Pcs | Sisa ${item.remainingPcs} pcs → kembali ke muatan",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer,

@@ -17,10 +17,11 @@ import kotlinx.coroutines.launch
         StoreEntity::class,
         StoreConsignmentEntity::class,
         VanLoadEntity::class,
+        VanReturnEntity::class,
         VisitTransactionEntity::class,
         TransactionItemEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,6 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun storeDao(): StoreDao
     abstract fun consignmentDao(): StoreConsignmentDao
     abstract fun vanLoadDao(): VanLoadDao
+    abstract fun vanReturnDao(): VanReturnDao
     abstract fun transactionDao(): TransactionDao
 
     companion object {

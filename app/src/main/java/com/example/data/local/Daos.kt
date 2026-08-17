@@ -313,3 +313,24 @@ interface TransactionDao {
     @Query("SELECT SUM(totalItemsSold) FROM visit_transactions")
     fun getTotalItemsSold(): Flow<Int?>
 }
+
+@Dao
+interface VanReturnDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReturn(returnEntity: VanReturnEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReturns(returns: List<VanReturnEntity>)
+
+    @Query("SELECT * FROM van_returns WHERE dateString = :dateString")
+    fun getReturnsForDate(dateString: String): Flow<List<VanReturnEntity>>
+
+    @Query("SELECT * FROM van_returns WHERE dateString = :dateString AND productId = :productId")
+    suspend fun getReturnsForProductOnDate(dateString: String, productId: Long): List<VanReturnEntity>
+
+    @Query("SELECT * FROM van_returns ORDER BY dateString DESC, timestamp DESC")
+    suspend fun getAllReturnsSnapshot(): List<VanReturnEntity>
+
+    @Query("DELETE FROM van_returns")
+    suspend fun deleteAllReturns()
+}

@@ -16,6 +16,7 @@ class SalesRepository(private val database: AppDatabase) {
     private val storeDao = database.storeDao()
     private val consignmentDao = database.consignmentDao()
     private val vanLoadDao = database.vanLoadDao()
+    private val vanReturnDao = database.vanReturnDao()
     private val transactionDao = database.transactionDao()
 
     // Products
@@ -115,16 +116,18 @@ class SalesRepository(private val database: AppDatabase) {
 
     suspend fun syncVanLoadAfterReconciliation(dateString: String, reconciledItems: List<ReconciliationItemInput>) = withContext(Dispatchers.IO) {
         for (item in reconciledItems) {
-            if (item.newDroppedQty > 0) {
-                val existingLoad = vanLoadDao.getLoadForProductOnDate(dateString, item.productId)
-                if (existingLoad != null) {
-                    val totalDistributed = item.newDroppedQty
-                    val newReturned = (existingLoad.initialLoadedQty - totalDistributed - existingLoad.damagedQty).coerceAtLeast(0)
-                    vanLoadDao.updateVanLoadReturned(existingLoad.id, newReturned, System.currentTimeMillis())
-                }
+            val existingLoad = vanLoadDao.getLoadForProductOnDate(dateString, item.productId)
+            if (existingLoad != null) {
+                // Sum all remaining stock returned from ALL stores for this product today
+                val returnsToday = vanReturnDao.getReturnsForProductOnDate(dateString, item.productId)
+                val totalReturned = returnsToday.sumOf { it.returnedQty }
+                vanLoadDao.updateVanLoadReturned(existingLoad.id, totalReturned, System.currentTimeMillis())
             }
         }
     }
+
+    // Returns (barang sisa kembali ke muatan)
+    fun getVanReturnsForDate(dateString: String): Flow<List<VanReturnEntity>> = vanReturnDao.getReturnsForDate(dateString)
 
     // Transactions & Analytics
     val allTransactions: Flow<List<TransactionWithItems>> = transactionDao.getAllTransactionsWithItems()
@@ -228,21 +231,40 @@ class SalesRepository(private val database: AppDatabase) {
         transactionDao.insertTransactionItems(itemEntities)
 
         // Update Store Consignments for next visit:
-        // The total stock at the warung now becomes: (remaining stock + newly dropped stock)
+        // Only new drops become the store's consignment — remaining goes back to van
         for (item in reconciledItems) {
-            val nextTotalStock = item.remainingStock + item.newDroppedQty
-            if (nextTotalStock > 0) {
+            if (item.newDroppedQty > 0) {
                 consignmentDao.insertOrUpdateConsignment(
                     StoreConsignmentEntity(
                         storeId = store.id,
                         productId = item.productId,
-                        currentDroppedQuantity = nextTotalStock,
+                        currentDroppedQuantity = item.newDroppedQty,
                         lastUpdated = System.currentTimeMillis()
                     )
                 )
             } else {
-                // If completely cleared out
-                consignmentDao.deleteConsignment(store.id, item.productId)
+                // No new drop and remaining returned → clear consignment
+                if (item.remainingStock <= 0) {
+                    consignmentDao.deleteConsignment(store.id, item.productId)
+                }
+            }
+        }
+
+        // Record returned stock per-store (barang sisa kembali ke muatan)
+        val dateString = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        for (item in reconciledItems) {
+            if (item.remainingStock > 0) {
+                vanReturnDao.insertReturn(
+                    VanReturnEntity(
+                        dateString = dateString,
+                        storeId = store.id,
+                        storeName = store.name,
+                        productId = item.productId,
+                        returnedQty = item.remainingStock
+                    )
+                )
+            }
+        }
             }
         }
 

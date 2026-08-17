@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.ProductEntity
 import com.example.data.model.VanLoadEntity
+import com.example.data.model.VanReturnEntity
 import com.example.ui.components.EditableNumberStepper
 import com.example.ui.components.NumberStepper
 import com.example.ui.components.StatCard
@@ -44,6 +45,7 @@ fun InventoryCargoScreen(
     val products by viewModel.allProducts.collectAsState()
     val todayLoads by viewModel.todayLoads.collectAsState()
     val todayDistributedByProduct by viewModel.todayDistributedByProduct.collectAsState()
+    val todayReturns by viewModel.todayReturns.collectAsState()
     val fieldStockSummaries by viewModel.fieldStockSummaries.collectAsState()
 
     var showAddProductDialog by remember { mutableStateOf(false) }
@@ -137,6 +139,7 @@ fun InventoryCargoScreen(
                     loads = todayLoads,
                     products = products,
                     distributedByProduct = todayDistributedByProduct,
+                    returns = todayReturns,
                     viewModel = viewModel,
                     onAddLoadClick = { showAddLoadDialog = true }
                 )
@@ -390,6 +393,7 @@ fun CargoLoadTab(
     loads: List<VanLoadEntity>,
     products: List<ProductEntity>,
     distributedByProduct: Map<Long, Int>,
+    returns: List<VanReturnEntity>,
     viewModel: SalesViewModel,
     onAddLoadClick: () -> Unit
 ) {
@@ -470,11 +474,12 @@ fun CargoLoadTab(
 
             items(loads, key = { it.id }) { load ->
                 val prod = products.find { it.id == load.productId }
-                var returnedQty by remember(load) { mutableIntStateOf(load.returnedQty) }
                 var damagedQty by remember(load) { mutableIntStateOf(load.damagedQty) }
 
                 val distributed = distributedByProduct[load.productId] ?: 0
-                val autoRemaining = (load.initialLoadedQty - distributed - damagedQty).coerceAtLeast(0)
+                val productReturns = returns.filter { it.productId == load.productId }
+                val totalReturned = productReturns.sumOf { it.returnedQty }
+                val sisaDiMobil = (load.initialLoadedQty - distributed + totalReturned - damagedQty).coerceAtLeast(0)
 
                 Card(
                     shape = RoundedCornerShape(14.dp),
@@ -520,7 +525,6 @@ fun CargoLoadTab(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Summary row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -540,16 +544,65 @@ fun CargoLoadTab(
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
+                                    text = "Dikembalikan",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$totalReturned ${prod?.unitName ?: "Pack"}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
                                     text = strings.cargoRemaining,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "$autoRemaining ${prod?.unitName ?: "Pack"}",
+                                    text = "$sisaDiMobil ${prod?.unitName ?: "Pack"}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (autoRemaining > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                                    color = if (sisaDiMobil > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
                                 )
+                            }
+                        }
+
+                        if (productReturns.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Text(
+                                        text = "Dikembalikan dari:",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    productReturns.forEach { ret ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = ret.storeName,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "${ret.returnedQty} ${prod?.unitName ?: "Pack"}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -564,8 +617,7 @@ fun CargoLoadTab(
                                 value = damagedQty,
                                 onValueChange = {
                                     damagedQty = it
-                                    val newAutoRemaining = (load.initialLoadedQty - distributed - damagedQty).coerceAtLeast(0)
-                                    viewModel.updateVanLoadReturn(load.id, newAutoRemaining, damagedQty)
+                                    viewModel.updateVanLoadReturn(load.id, load.returnedQty, damagedQty)
                                 },
                                 label = strings.cargoDamaged ?: "Damaged"
                             )

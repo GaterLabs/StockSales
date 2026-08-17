@@ -152,6 +152,9 @@ class SalesViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    val todayReturns: StateFlow<List<VanReturnEntity>> = repository.getVanReturnsForDate(todayDateString)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // Date Filter for Analytics
     val analyticsDateFilter = MutableStateFlow(DateFilterType.THIS_WEEK)
     val customAnalyticsDate = MutableStateFlow<String?>(null) // "yyyy-MM-dd"

@@ -178,3 +178,32 @@ data class TransactionItemEntity(
     val subtotalDue: Double,       // soldQuantity * sellPrice (e.g. 105,000)
     val subtotalProfit: Double     // soldQuantity * (sellPrice - costPrice) (e.g. 28,000)
 )
+
+@Entity(
+    tableName = "van_returns",
+    foreignKeys = [
+        ForeignKey(
+            entity = StoreEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["storeId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ProductEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["productId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("storeId"), Index("productId"), Index("dateString")]
+)
+data class VanReturnEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val dateString: String,        // format: "YYYY-MM-DD"
+    val storeId: Long,
+    val storeName: String,
+    val productId: Long,
+    val returnedQty: Int,          // Barang sisa yang dikembalikan dari warung
+    val timestamp: Long = System.currentTimeMillis()
+)
